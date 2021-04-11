@@ -1,0 +1,5 @@
+# Specific to Halftone
+test/*
+
+# Specific to MacOS
+.DS_Store
