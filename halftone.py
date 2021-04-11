@@ -24,7 +24,7 @@ class Cell:
 
         self.ulx = ulx
         self.uly = uly
-        self.size = size/40
+        self.size = size / 40
 
 
 class Screen:
@@ -59,7 +59,6 @@ class Screen:
                 )
                 cell_ulx = np.floor(col * self.res + self.res / 2) + self.xshift
                 cell_uly = np.floor(row * self.res + self.res / 2) + self.yshift
-                # cell_uly = np.floor((self.array.shape[0] - row) * self.res + self.res / 2) + self.yshift
                 self.cells.append(Cell(cell_ulx, cell_uly, self.array[row, col]))
 
     def display(self, plt, colorstr="k"):
@@ -75,13 +74,6 @@ class Screen:
         s = np.asarray([c.size for c in self.cells])
 
         plt.scatter(x, self.array.shape[0] - y, s=s, c=colorstr, alpha=0.5)
-
-        # plt.scatter(
-        #     [c.ulx for c in self.cells],
-        #     [c.uly for c in self.cells],
-        #     s=[c.size for c in self.cells],
-        #     c=colorstr,
-        # )
 
 
 def main():
@@ -99,19 +91,10 @@ def main():
     rscreen = Screen((0, 0), 5, img[:, :, 0])
     gscreen = Screen((0, 0), 5, img[:, :, 1])
     bscreen = Screen((0, 0), 5, img[:, :, 2])
-    # io.imshow(img)
     rscreen.display(plt, colorstr="r")
     gscreen.display(plt, colorstr="g")
     bscreen.display(plt, colorstr="b")
     plt.show()
-
-    # help(img)
-    # help(cv2.imshow)
-    # cv2.imshow("image",img)
-    # cv2.waitKey(0)
-    # cv2.destroyAllWindows()
-
-    # screen = Screen(1, 50, )
 
 
 if __name__ == "__main__":
