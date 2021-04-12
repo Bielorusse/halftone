@@ -24,7 +24,7 @@ class Cell:
 
         self.ulx = ulx
         self.uly = uly
-        self.size = size / 40
+        self.size = size * 10
 
 
 class Screen:
@@ -76,6 +76,23 @@ class Screen:
         plt.scatter(x, self.array.shape[0] - y, s=s, c=colorstr, alpha=0.5)
 
 
+def rgb_to_cmyk(img):
+    """
+    Simple formula for conversion from RGB to CMYK color model.
+    Doesn't take into account true color representation on physical device.
+    Third axis of input and output array is the color dimension (RGB, and CMYK respectively)
+    Input:
+        -img    np.array of floats
+    Output:
+        -       np.array of floats
+    """
+    black = np.minimum.reduce([1 - img[:, :, 0], 1 - img[:, :, 1], 1 - img[:, :, 2]])
+    cyan = (1 - img[:, :, 0] - black) / (1 - black)
+    magenta = (1 - img[:, :, 1] - black) / (1 - black)
+    yellow = (1 - img[:, :, 2] - black) / (1 - black)
+    return np.stack([cyan, magenta, yellow, black], axis=-1)
+
+
 def main():
     """
     Simulate halftoning.
@@ -86,14 +103,18 @@ def main():
     input_image = os.path.join(main_path, "lenna.png")
     output_image = os.path.join(main_path, "output.png")
 
-    # read input image
-    img = io.imread(input_image)
-    rscreen = Screen((0, 0), 5, img[:, :, 0])
-    gscreen = Screen((0, 0), 5, img[:, :, 1])
-    bscreen = Screen((0, 0), 5, img[:, :, 2])
-    rscreen.display(plt, colorstr="r")
-    gscreen.display(plt, colorstr="g")
-    bscreen.display(plt, colorstr="b")
+    # read, normalize input image, and convert from rgb to cmyk
+    img = io.imread(input_image) / 255
+    img = rgb_to_cmyk(img)
+
+    cscreen = Screen((0, 0), 5, img[:, :, 0])
+    mscreen = Screen((1, 0), 5, img[:, :, 1])
+    yscreen = Screen((1, 1), 5, img[:, :, 2])
+    kscreen = Screen((0, 1), 5, img[:, :, 3])
+    cscreen.display(plt, colorstr="b")
+    mscreen.display(plt, colorstr="r")
+    yscreen.display(plt, colorstr="y")
+    kscreen.display(plt, colorstr="k")
     plt.show()
 
 
