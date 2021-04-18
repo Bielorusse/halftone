@@ -24,7 +24,7 @@ class Cell:
 
         self.ulx = ulx
         self.uly = uly
-        self.size = size * 10
+        self.size = size
 
 
 class Screen:
@@ -46,8 +46,6 @@ class Screen:
         self.angle = angle
         self.res = resolution
 
-        # compute size of this screen
-
         # coordinates of image corners in image reference frame
         image_ulx1 = 0
         image_uly1 = 0
@@ -59,15 +57,32 @@ class Screen:
         image_lry1 = input_array.shape[0]
 
         # coordinates of image corners in screen reference frame
-        image_ulx2 = (image_ulx1 * np.cos(self.angle) - image_uly1 * np.sin(self.angle))/self.res
-        image_uly2 = (image_ulx1 * np.sin(self.angle) + image_uly1 * np.cos(-self.angle))/self.res
-        image_urx2 = (image_urx1 * np.cos(self.angle) - image_ury1 * np.sin(self.angle))/self.res
-        image_ury2 = (image_urx1 * np.sin(self.angle) + image_ury1 * np.cos(-self.angle))/self.res
-        image_llx2 = (image_llx1 * np.cos(self.angle) - image_lly1 * np.sin(self.angle))/self.res
-        image_lly2 = (image_llx1 * np.sin(self.angle) + image_lly1 * np.cos(-self.angle))/self.res
-        image_lrx2 = (image_lrx1 * np.cos(self.angle) - image_lry1 * np.sin(self.angle))/self.res
-        image_lry2 = (image_lrx1 * np.sin(self.angle) + image_lry1 * np.cos(-self.angle))/self.res
+        image_ulx2 = (
+            image_ulx1 * np.cos(self.angle) - image_uly1 * np.sin(self.angle)
+        ) / self.res
+        image_uly2 = (
+            image_ulx1 * np.sin(self.angle) + image_uly1 * np.cos(-self.angle)
+        ) / self.res
+        image_urx2 = (
+            image_urx1 * np.cos(self.angle) - image_ury1 * np.sin(self.angle)
+        ) / self.res
+        image_ury2 = (
+            image_urx1 * np.sin(self.angle) + image_ury1 * np.cos(-self.angle)
+        ) / self.res
+        image_llx2 = (
+            image_llx1 * np.cos(self.angle) - image_lly1 * np.sin(self.angle)
+        ) / self.res
+        image_lly2 = (
+            image_llx1 * np.sin(self.angle) + image_lly1 * np.cos(-self.angle)
+        ) / self.res
+        image_lrx2 = (
+            image_lrx1 * np.cos(self.angle) - image_lry1 * np.sin(self.angle)
+        ) / self.res
+        image_lry2 = (
+            image_lrx1 * np.sin(self.angle) + image_lry1 * np.cos(-self.angle)
+        ) / self.res
 
+        # image bounds in screen coordinates
         x2_min = int(np.floor(min([image_ulx2, image_urx2, image_llx2, image_lrx2])))
         x2_max = int(np.ceil(max([image_ulx2, image_urx2, image_llx2, image_lrx2])))
         y2_min = int(np.floor(min([image_uly2, image_ury2, image_lly2, image_lry2])))
@@ -96,7 +111,7 @@ class Screen:
                 ymax = int(np.ceil(y1 + self.res / 2))
 
                 # get mean color of area of image covered by this cell
-                if ( # handle out of image areas
+                if (  # handle out of image areas
                     xmin < 0
                     or xmax > input_array.shape[1]
                     or ymin < 0
@@ -120,7 +135,7 @@ class Screen:
         y = np.asarray([c.uly for c in self.cells])
         s = np.asarray([c.size for c in self.cells])
 
-        plt.scatter(x, -y, s=s, c=colorstr, alpha=0.5)
+        plt.scatter(x, -y, s=s * 100, c=colorstr, marker=".", alpha=0.5, linewidths=0)
 
 
 def rgb_to_cmyk(img):
@@ -149,16 +164,36 @@ def main():
     main_path = "/Users/thibautvoirand/creation/programmation/halftone/halftone/test"
     input_image = os.path.join(main_path, "lenna.png")
     output_image = os.path.join(main_path, "output.png")
-    screens_res = 8 # in pixels
+    screens_res = 8  # in pixels
 
     # read, normalize input image, and convert from rgb to cmyk
     img = io.imread(input_image) / 255
     img = rgb_to_cmyk(img)
 
-    cscreen = Screen((0, 0), 0, screens_res, img[:, :, 0])
-    mscreen = Screen((0, 0), np.pi / 32, screens_res+2, img[:, :, 1])
-    yscreen = Screen((0, 0), np.pi / 16, screens_res+1, img[:, :, 2])
-    kscreen = Screen((0, 0), 3 * np.pi / 32, screens_res-1, img[:, :, 3])
+    cscreen = Screen(
+        (0, 0),  # x and y shift
+        0,  # angle
+        screens_res,  # resolution
+        img[:, :, 0],  # input array
+    )
+    mscreen = Screen(
+        (0, 0),  # x and y shift
+        np.pi / 32,  # angle
+        screens_res,  # resolution
+        img[:, :, 1],  # input array
+    )
+    yscreen = Screen(
+        (0, 0),  # x and y shift
+        np.pi / 16,  # angle
+        screens_res,  # resolution
+        img[:, :, 2],  # input array
+    )
+    kscreen = Screen(
+        (0, 0),  # x and y shift
+        np.pi * 3 / 32,  # angle
+        screens_res,  # resolution
+        img[:, :, 3],  # input array
+    )
     cscreen.display(plt, colorstr="cyan")
     mscreen.display(plt, colorstr="magenta")
     yscreen.display(plt, colorstr="yellow")
