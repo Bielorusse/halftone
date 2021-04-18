@@ -4,6 +4,7 @@ Script to simulate halftoning.
 
 # standard imports
 import os
+import datetime
 
 # third party imports
 import numpy as np
@@ -163,8 +164,11 @@ def main():
     # create some constants
     main_path = "/Users/thibautvoirand/creation/programmation/halftone/halftone/test"
     input_image = os.path.join(main_path, "lenna.png")
-    output_image = os.path.join(main_path, "output.png")
-    screens_res = 8  # in pixels
+    output_image = os.path.join(
+        main_path,
+        "output_{}.png".format(datetime.datetime.now().strftime("%Y%m%d_%H%M")),
+    )
+    screens_res = 10  # in pixels
 
     # read, normalize input image, and convert from rgb to cmyk
     img = io.imread(input_image) / 255
@@ -172,25 +176,25 @@ def main():
 
     cscreen = Screen(
         (0, 0),  # x and y shift
-        0,  # angle
+        15 * np.pi / 180,  # angle
         screens_res,  # resolution
         img[:, :, 0],  # input array
     )
     mscreen = Screen(
         (0, 0),  # x and y shift
-        np.pi / 32,  # angle
+        75 * np.pi / 180,  # angle
         screens_res,  # resolution
         img[:, :, 1],  # input array
     )
     yscreen = Screen(
         (0, 0),  # x and y shift
-        np.pi / 16,  # angle
+        0,  # angle
         screens_res,  # resolution
         img[:, :, 2],  # input array
     )
     kscreen = Screen(
         (0, 0),  # x and y shift
-        np.pi * 3 / 32,  # angle
+        45 * np.pi / 180,  # angle
         screens_res,  # resolution
         img[:, :, 3],  # input array
     )
@@ -198,6 +202,9 @@ def main():
     mscreen.display(plt, colorstr="magenta")
     yscreen.display(plt, colorstr="yellow")
     kscreen.display(plt, colorstr="black")
+    plt.xlim((-img.shape[1]*0.1, img.shape[1]*1.1))
+    plt.ylim((-img.shape[0]*1.1, img.shape[0]*0.1))
+    plt.savefig(output_image)
     plt.show()
 
 
