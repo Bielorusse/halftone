@@ -90,20 +90,28 @@ class Screen:
         y2_max = int(np.ceil(max([image_uly2, image_ury2, image_lly2, image_lry2])))
 
         # initialize screen contents
-        self.array = np.zeros((x2_max - x2_min, y2_max - y2_min))
+        self.array = np.zeros((y2_max - y2_min, x2_max - x2_min))
         self.cells = []
 
         # loop through screen cells
-        for row in [r + y2_min for r in range(self.array.shape[0])]:
-            for col in [c + x2_min for c in range(self.array.shape[1])]:
+        for row in range(self.array.shape[0]):
+            for col in range(self.array.shape[1]):
 
                 # cell coordinates in screen reference frame
-                x2 = np.floor(col * self.res + self.res / 2) + self.xshift
-                y2 = np.floor(row * self.res + self.res / 2) + self.yshift
+                x2 = col + x2_min
+                y2 = row + y2_min
 
                 # cell coordinates in image reference frame
-                x1 = x2 * np.cos(-self.angle) - y2 * np.sin(-self.angle)
-                y1 = x2 * np.sin(-self.angle) + y2 * np.cos(-self.angle)
+                x1 = (
+                    (x2 * self.res + self.res / 2) * np.cos(-self.angle)
+                    - (y2 * self.res + self.res / 2) * np.sin(-self.angle)
+                    + self.xshift
+                )
+                y1 = (
+                    (x2 * self.res + self.res / 2) * np.sin(-self.angle)
+                    + (y2 * self.res + self.res / 2) * np.cos(-self.angle)
+                    + self.yshift
+                )
 
                 # get area of image which will be covered by this cell
                 xmin = int(np.floor(x1 - self.res / 2))
@@ -202,8 +210,8 @@ def main():
     mscreen.display(plt, colorstr="magenta")
     yscreen.display(plt, colorstr="yellow")
     kscreen.display(plt, colorstr="black")
-    plt.xlim((-img.shape[1]*0.1, img.shape[1]*1.1))
-    plt.ylim((-img.shape[0]*1.1, img.shape[0]*0.1))
+    plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
+    plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
     plt.savefig(output_image)
     plt.show()
 
