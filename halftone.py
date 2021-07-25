@@ -5,13 +5,14 @@ Script to simulate halftoning.
 # standard imports
 import os
 import datetime
+import argparse
 
 # third party imports
 import numpy as np
 from skimage import io
 from matplotlib import pyplot as plt
-
 from shapely.geometry import LineString
+
 
 def write_svg_file(
     output_file, svg_elements, canvas_width, canvas_height, title=None, description=None
@@ -48,6 +49,7 @@ def write_svg_file(
 
         # write footer
         outfile.write("</svg>")
+
 
 class Cell:
     """Cell of a halftone screen."""
@@ -202,24 +204,25 @@ def rgb_to_cmyk(img):
     return np.stack([cyan, magenta, yellow, black], axis=-1)
 
 
-def main():
+def halftone(input_file, output_file, display_preview=False):
     """
     Simulate halftoning.
+
+    Parameters
+    ----------
+        input_file: str
+        output_file: str
+        display_preview: bool
     """
 
     # create some constants
-    main_path = "/Users/thibautvoirand/creation/programmation/halftone/halftone/test"
-    input_image = os.path.join(main_path, "lenna.png")
-    output_image = os.path.join(
-        main_path,
-        "output_{}.png".format(datetime.datetime.now().strftime("%Y%m%d_%H%M")),
-    )
     screens_res = 10  # in pixels
 
     # read, normalize input image, and convert from rgb to cmyk
-    img = io.imread(input_image) / 255
+    img = io.imread(input_file) / 255
     img = rgb_to_cmyk(img)
 
+    # create cyan, magenta, yellow and black screens
     cscreen = Screen(
         (0, 0),  # x and y shift
         15 * np.pi / 180,  # angle
@@ -244,21 +247,42 @@ def main():
         screens_res,  # resolution
         img[:, :, 3],  # input array
     )
-    cscreen.display(plt, colorstr="cyan")
-    mscreen.display(plt, colorstr="magenta")
-    yscreen.display(plt, colorstr="yellow")
-    kscreen.display(plt, colorstr="black")
-    plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
-    plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
-    plt.savefig(output_image)
-    # plt.show()
-    svg_elements = [c.line.svg(stroke_color="cyan") for c in cscreen.cells if not c.line.coords[0] == c.line.coords[1]]
-    svg_elements += [c.line.svg(stroke_color="magenta") for c in mscreen.cells if not c.line.coords[0] == c.line.coords[1]]
-    svg_elements += [c.line.svg(stroke_color="yellow") for c in yscreen.cells if not c.line.coords[0] == c.line.coords[1]]
-    svg_elements += [c.line.svg(stroke_color="black") for c in kscreen.cells if not c.line.coords[0] == c.line.coords[1]]
 
+    # optionally display preview of result using matplotlib
+    if display_preview:
+        cscreen.display(plt, colorstr="cyan")
+        mscreen.display(plt, colorstr="magenta")
+        yscreen.display(plt, colorstr="yellow")
+        kscreen.display(plt, colorstr="black")
+        plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
+        plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
+        plt.show()
+
+    # convert screens to svg elements
+    svg_elements = [
+        c.line.svg(stroke_color="cyan")
+        for c in cscreen.cells
+        if not c.line.coords[0] == c.line.coords[1]
+    ]
+    svg_elements += [
+        c.line.svg(stroke_color="magenta")
+        for c in mscreen.cells
+        if not c.line.coords[0] == c.line.coords[1]
+    ]
+    svg_elements += [
+        c.line.svg(stroke_color="yellow")
+        for c in yscreen.cells
+        if not c.line.coords[0] == c.line.coords[1]
+    ]
+    svg_elements += [
+        c.line.svg(stroke_color="black")
+        for c in kscreen.cells
+        if not c.line.coords[0] == c.line.coords[1]
+    ]
+
+    # write svg output file
     write_svg_file(
-        "{}.svg".format(os.path.splitext(output_image)[0]),
+        output_file,
         svg_elements,
         img.shape[1],
         img.shape[0],
@@ -267,4 +291,34 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
+    parser = argparse.ArgumentParser()
+    required_arguments = parser.add_argument_group("Required Arguments")
+    required_arguments.add_argument("-i", "--input_file", required=True)
+    required_arguments.add_argument(
+        "-o", "--output_file", required=True, help="Output SVG file"
+    )
+    parser.add_argument(
+        "-t",
+        "--timestamp",
+        action="store_true",
+        help="Add timestamp to output filename",
+    )
+    parser.add_argument(
+        "-p",
+        "--preview",
+        action="store_true",
+        help="Display preview of output file using matplotlib",
+    )
+    args = parser.parse_args()
+
+    # optionally add timestamp to output filename
+    if args.timestamp:
+        output_file = "{}_{}{}".format(
+            os.path.splitext(args.output_file)[0],
+            datetime.datetime.now().strftime("%Y%m%d_%H%M"),
+            os.path.splitext(args.output_file)[1],
+        )
+    else:
+        output_file = args.output_file
+
+    halftone(args.input_file, output_file, args.preview)
