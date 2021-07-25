@@ -204,7 +204,7 @@ def rgb_to_cmyk(img):
     return np.stack([cyan, magenta, yellow, black], axis=-1)
 
 
-def halftone(input_file, output_file, display_preview=False):
+def halftone(input_file, output_file, display_preview=False, color=None):
     """
     Simulate halftoning.
 
@@ -213,6 +213,9 @@ def halftone(input_file, output_file, display_preview=False):
         input_file: str
         output_file: str
         display_preview: bool
+        color: str or None
+            option to process only one color, str that can take following values (or None):
+            'cyan', 'magenta', 'yellow', 'black'
     """
 
     # create some constants
@@ -223,62 +226,68 @@ def halftone(input_file, output_file, display_preview=False):
     img = rgb_to_cmyk(img)
 
     # create cyan, magenta, yellow and black screens
-    cscreen = Screen(
-        (0, 0),  # x and y shift
-        15 * np.pi / 180,  # angle
-        screens_res,  # resolution
-        img[:, :, 0],  # input array
-    )
-    mscreen = Screen(
-        (0, 0),  # x and y shift
-        75 * np.pi / 180,  # angle
-        screens_res,  # resolution
-        img[:, :, 1],  # input array
-    )
-    yscreen = Screen(
-        (0, 0),  # x and y shift
-        0,  # angle
-        screens_res,  # resolution
-        img[:, :, 2],  # input array
-    )
-    kscreen = Screen(
-        (0, 0),  # x and y shift
-        45 * np.pi / 180,  # angle
-        screens_res,  # resolution
-        img[:, :, 3],  # input array
-    )
+    svg_elements = []
+    if color is None or color == "cyan":
+        cscreen = Screen(
+            (0, 0),  # x and y shift
+            15 * np.pi / 180,  # angle
+            screens_res,  # resolution
+            img[:, :, 0],  # input array
+        )
+        svg_elements += [
+            c.line.svg(stroke_color="cyan")
+            for c in cscreen.cells
+            if not c.line.coords[0] == c.line.coords[1]
+        ]
+
+    if color is None or color == "magenta":
+        mscreen = Screen(
+            (0, 0),  # x and y shift
+            75 * np.pi / 180,  # angle
+            screens_res,  # resolution
+            img[:, :, 1],  # input array
+        )
+        svg_elements += [
+            c.line.svg(stroke_color="magenta")
+            for c in mscreen.cells
+            if not c.line.coords[0] == c.line.coords[1]
+        ]
+
+    if color is None or color == "yellow":
+        yscreen = Screen(
+            (0, 0),  # x and y shift
+            0,  # angle
+            screens_res,  # resolution
+            img[:, :, 2],  # input array
+        )
+        svg_elements += [
+            c.line.svg(stroke_color="yellow")
+            for c in yscreen.cells
+            if not c.line.coords[0] == c.line.coords[1]
+        ]
+
+    if color is None or color == "black":
+        kscreen = Screen(
+            (0, 0),  # x and y shift
+            45 * np.pi / 180,  # angle
+            screens_res,  # resolution
+            img[:, :, 3],  # input array
+        )
+        svg_elements += [
+            c.line.svg(stroke_color="black")
+            for c in kscreen.cells
+            if not c.line.coords[0] == c.line.coords[1]
+        ]
 
     # optionally display preview of result using matplotlib
     if display_preview:
-        cscreen.display(plt, colorstr="cyan")
-        mscreen.display(plt, colorstr="magenta")
-        yscreen.display(plt, colorstr="yellow")
-        kscreen.display(plt, colorstr="black")
+        if color is None or color == "cyan": cscreen.display(plt, colorstr="cyan")
+        if color is None or color == "magenta": mscreen.display(plt, colorstr="magenta")
+        if color is None or color == "yellow": yscreen.display(plt, colorstr="yellow")
+        if color is None or color == "black": kscreen.display(plt, colorstr="black")
         plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
         plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
         plt.show()
-
-    # convert screens to svg elements
-    svg_elements = [
-        c.line.svg(stroke_color="cyan")
-        for c in cscreen.cells
-        if not c.line.coords[0] == c.line.coords[1]
-    ]
-    svg_elements += [
-        c.line.svg(stroke_color="magenta")
-        for c in mscreen.cells
-        if not c.line.coords[0] == c.line.coords[1]
-    ]
-    svg_elements += [
-        c.line.svg(stroke_color="yellow")
-        for c in yscreen.cells
-        if not c.line.coords[0] == c.line.coords[1]
-    ]
-    svg_elements += [
-        c.line.svg(stroke_color="black")
-        for c in kscreen.cells
-        if not c.line.coords[0] == c.line.coords[1]
-    ]
 
     # write svg output file
     write_svg_file(
@@ -309,6 +318,12 @@ if __name__ == "__main__":
         action="store_true",
         help="Display preview of output file using matplotlib",
     )
+    parser.add_argument(
+        "-c",
+        "--color",
+        choices=["cyan", "magenta", "yellow", "black"],
+        help="Option to use only one color for output",
+    )
     args = parser.parse_args()
 
     # optionally add timestamp to output filename
@@ -321,4 +336,4 @@ if __name__ == "__main__":
     else:
         output_file = args.output_file
 
-    halftone(args.input_file, output_file, args.preview)
+    halftone(args.input_file, output_file, args.preview, args.color)
