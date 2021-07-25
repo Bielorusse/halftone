@@ -63,6 +63,7 @@ class Cell:
         self.ulx = ulx
         self.uly = uly
         self.size = size
+        self.line = LineString([ulx, uly], [ulx + s, uly + s])
 
 
 class Screen:
