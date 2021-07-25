@@ -11,6 +11,43 @@ import numpy as np
 from skimage import io
 from matplotlib import pyplot as plt
 
+from shapely.geometry import LineString
+
+def write_svg_file(
+    output_file, svg_elements, canvas_width, canvas_height, title=None, description=None
+):
+    """
+    Write SVG file.
+    Input:
+        -output_file    str
+        -svg_elements   [str, ...]
+            list of strings defining svg elements
+        -canvas_width   int
+        -canvas_height  int
+        -title          str
+        -description    str
+    """
+
+    with open(output_file, "w") as outfile:
+
+        # write headers
+        outfile.write("<?xml version='1.0' encoding='utf-8'?>\n")
+        outfile.write(
+            "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='{}' height='{}'>\n".format(
+                canvas_width, canvas_height
+            )
+        )
+        if title:
+            outfile.write("<title>{}</title>\n".format(title))
+        if description:
+            outfile.write("<description>{}</description>\n".format(description))
+
+        # write svg elements
+        for svg_element in svg_elements:
+            outfile.write("{}\n".format(svg_element))
+
+        # write footer
+        outfile.write("</svg>")
 
 class Cell:
     """Cell of a halftone screen."""
@@ -213,7 +250,18 @@ def main():
     plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
     plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
     plt.savefig(output_image)
-    plt.show()
+    # plt.show()
+    svg_elements = [c.line.svg(stroke_color="cyan") for c in cscreen.cells if not c.line.coords[0] == c.line.coords[1]]
+    svg_elements += [c.line.svg(stroke_color="magenta") for c in mscreen.cells if not c.line.coords[0] == c.line.coords[1]]
+    svg_elements += [c.line.svg(stroke_color="yellow") for c in yscreen.cells if not c.line.coords[0] == c.line.coords[1]]
+    svg_elements += [c.line.svg(stroke_color="black") for c in kscreen.cells if not c.line.coords[0] == c.line.coords[1]]
+
+    write_svg_file(
+        "{}.svg".format(os.path.splitext(output_image)[0]),
+        svg_elements,
+        img.shape[1],
+        img.shape[0],
+    )
 
 
 if __name__ == "__main__":
