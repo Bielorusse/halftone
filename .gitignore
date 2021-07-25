@@ -1,5 +1,10 @@
 # Specific to Halftone
 test/*
+brouillon.txt
 
 # Specific to MacOS
 .DS_Store
+
+# Specific to python
+__pycache__/
+*.py[cod]
