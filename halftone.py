@@ -11,7 +11,7 @@ import argparse
 import numpy as np
 from skimage import io
 from matplotlib import pyplot as plt
-from shapely.geometry import LineString
+from shapely.geometry import Point
 
 
 def write_svg_file(
@@ -51,8 +51,8 @@ def write_svg_file(
         outfile.write("</svg>")
 
 
-class Cell:
-    """Cell of a halftone screen."""
+class Dot:
+    """Dot of a halftone screen."""
 
     def __init__(self, ulx, uly, size):
         """
@@ -65,7 +65,7 @@ class Cell:
         self.ulx = ulx
         self.uly = uly
         self.size = size
-        self.line = LineString([[ulx, uly], [ulx + size, uly + size]])
+        self.contour = Point(ulx, uly).buffer(size * 3).exterior
 
 
 class Screen:
@@ -131,17 +131,17 @@ class Screen:
 
         # initialize screen contents
         self.array = np.zeros((y2_max - y2_min, x2_max - x2_min))
-        self.cells = []
+        self.dots = []
 
-        # loop through screen cells
+        # loop through screen dots
         for row in range(self.array.shape[0]):
             for col in range(self.array.shape[1]):
 
-                # cell coordinates in screen reference frame
+                # dot coordinates in screen reference frame
                 x2 = col + x2_min
                 y2 = row + y2_min
 
-                # cell coordinates in image reference frame
+                # dot coordinates in image reference frame
                 x1 = (
                     (x2 * self.res + self.res / 2) * np.cos(-self.angle)
                     - (y2 * self.res + self.res / 2) * np.sin(-self.angle)
@@ -153,13 +153,13 @@ class Screen:
                     + self.yshift
                 )
 
-                # get area of image which will be covered by this cell
+                # get area of image which will be covered by this dot
                 xmin = int(np.floor(x1 - self.res / 2))
                 xmax = int(np.ceil(x1 + self.res / 2))
                 ymin = int(np.floor(y1 - self.res / 2))
                 ymax = int(np.ceil(y1 + self.res / 2))
 
-                # get mean color of area of image covered by this cell
+                # get mean color of area of image covered by this dot
                 if (  # handle out of image areas
                     xmin < 0
                     or xmax > input_array.shape[1]
@@ -170,7 +170,7 @@ class Screen:
                 else:
                     self.array[row, col] = np.mean(input_array[ymin:ymax, xmin:xmax])
 
-                self.cells.append(Cell(x1, y1, self.array[row, col]))
+                self.dots.append(Dot(x1, y1, self.array[row, col]))
 
     def display(self, plt, colorstr="k"):
         """
@@ -180,9 +180,9 @@ class Screen:
             -colorstr   str
         """
 
-        x = np.asarray([c.ulx for c in self.cells])
-        y = np.asarray([c.uly for c in self.cells])
-        s = np.asarray([c.size for c in self.cells])
+        x = np.asarray([d.ulx for d in self.dots])
+        y = np.asarray([d.uly for d in self.dots])
+        s = np.asarray([d.size for d in self.dots])
 
         plt.scatter(x, -y, s=s * 100, c=colorstr, marker=".", alpha=0.5, linewidths=0)
 
@@ -235,9 +235,9 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 0],  # input array
         )
         svg_elements += [
-            c.line.svg(stroke_color="cyan")
-            for c in cscreen.cells
-            if not c.line.coords[0] == c.line.coords[1]
+            d.contour.svg(stroke_color="cyan")
+            for d in cscreen.dots
+            if not d.contour.coords == []
         ]
 
     if color is None or color == "magenta":
@@ -248,9 +248,9 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 1],  # input array
         )
         svg_elements += [
-            c.line.svg(stroke_color="magenta")
-            for c in mscreen.cells
-            if not c.line.coords[0] == c.line.coords[1]
+            d.contour.svg(stroke_color="magenta")
+            for d in mscreen.dots
+            if not d.contour.coords == []
         ]
 
     if color is None or color == "yellow":
@@ -261,9 +261,9 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 2],  # input array
         )
         svg_elements += [
-            c.line.svg(stroke_color="yellow")
-            for c in yscreen.cells
-            if not c.line.coords[0] == c.line.coords[1]
+            d.contour.svg(stroke_color="yellow")
+            for d in yscreen.dots
+            if not d.contour.coords == []
         ]
 
     if color is None or color == "black":
@@ -274,9 +274,9 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 3],  # input array
         )
         svg_elements += [
-            c.line.svg(stroke_color="black")
-            for c in kscreen.cells
-            if not c.line.coords[0] == c.line.coords[1]
+            d.contour.svg(stroke_color="black")
+            for d in kscreen.dots
+            if not d.contour.coords == []
         ]
 
     # optionally display preview of result using matplotlib
