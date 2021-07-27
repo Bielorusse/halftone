@@ -193,15 +193,17 @@ def rgb_to_cmyk(img):
     Doesn't take into account true color representation on physical device.
     Third axis of input and output array is the color dimension (RGB, and CMYK respectively)
     Input:
-        -img    np.array of floats
+        -img        np.array of floats
     Output:
-        -       np.array of floats
+        -output     np.array of floats
     """
     black = np.minimum.reduce([1 - img[:, :, 0], 1 - img[:, :, 1], 1 - img[:, :, 2]])
     cyan = (1 - img[:, :, 0] - black) / (1 - black)
     magenta = (1 - img[:, :, 1] - black) / (1 - black)
     yellow = (1 - img[:, :, 2] - black) / (1 - black)
-    return np.stack([cyan, magenta, yellow, black], axis=-1)
+    output = np.stack([cyan, magenta, yellow, black], axis=-1)
+    output[np.isnan(output)] = 0
+    return output
 
 
 def halftone(input_file, output_file, display_preview=False, color=None):
