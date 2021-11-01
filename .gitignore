@@ -1,6 +1,7 @@
 # Specific to Halftone
 test/*
 brouillon.txt
+config/config.ini
 
 # Specific to MacOS
 .DS_Store

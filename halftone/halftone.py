@@ -6,6 +6,8 @@ Script to simulate halftoning.
 import os
 import datetime
 import argparse
+import configparser
+from pathlib import Path
 
 # third party imports
 import numpy as np
@@ -13,42 +15,8 @@ from skimage import io
 from matplotlib import pyplot as plt
 from shapely.geometry import Point
 
-
-def write_svg_file(
-    output_file, svg_elements, canvas_width, canvas_height, title=None, description=None
-):
-    """
-    Write SVG file.
-    Input:
-        -output_file    str
-        -svg_elements   [str, ...]
-            list of strings defining svg elements
-        -canvas_width   int
-        -canvas_height  int
-        -title          str
-        -description    str
-    """
-
-    with open(output_file, "w") as outfile:
-
-        # write headers
-        outfile.write("<?xml version='1.0' encoding='utf-8'?>\n")
-        outfile.write(
-            "<svg xmlns='http://www.w3.org/2000/svg' version='1.1' width='{}' height='{}'>\n".format(
-                canvas_width, canvas_height
-            )
-        )
-        if title:
-            outfile.write("<title>{}</title>\n".format(title))
-        if description:
-            outfile.write("<description>{}</description>\n".format(description))
-
-        # write svg elements
-        for svg_element in svg_elements:
-            outfile.write("{}\n".format(svg_element))
-
-        # write footer
-        outfile.write("</svg>")
+# current project imports
+from svg_utils import write_svg_file
 
 
 class Dot:
@@ -56,10 +24,11 @@ class Dot:
 
     def __init__(self, ulx, uly, size):
         """
-        Input:
-            -ulx    float
-            -uly    float
-            -size   float
+        Parameters
+        ----------
+        ulx : float
+        uly : float
+        size : float
         """
 
         self.ulx = ulx
@@ -72,14 +41,16 @@ class Screen:
     """Halftone screen."""
 
     def __init__(self, shift, angle, resolution, input_array):
-        """
-        Constructor of halftone screen class.
+        """Constructor of halftone screen class.
+
         Build a halftone screen based on a given input array.
-        Input:
-            -shift          (int, int)
-            -angle          float
-            -resolution     int
-            -input_array    np.array
+
+        Parameters
+        ----------
+        shift : (int, int)
+        angle : float
+        resolution : int
+        input_array : np.array
         """
 
         # apply constructor arguments
@@ -98,30 +69,14 @@ class Screen:
         image_lry1 = input_array.shape[0]
 
         # coordinates of image corners in screen reference frame
-        image_ulx2 = (
-            image_ulx1 * np.cos(self.angle) - image_uly1 * np.sin(self.angle)
-        ) / self.res
-        image_uly2 = (
-            image_ulx1 * np.sin(self.angle) + image_uly1 * np.cos(-self.angle)
-        ) / self.res
-        image_urx2 = (
-            image_urx1 * np.cos(self.angle) - image_ury1 * np.sin(self.angle)
-        ) / self.res
-        image_ury2 = (
-            image_urx1 * np.sin(self.angle) + image_ury1 * np.cos(-self.angle)
-        ) / self.res
-        image_llx2 = (
-            image_llx1 * np.cos(self.angle) - image_lly1 * np.sin(self.angle)
-        ) / self.res
-        image_lly2 = (
-            image_llx1 * np.sin(self.angle) + image_lly1 * np.cos(-self.angle)
-        ) / self.res
-        image_lrx2 = (
-            image_lrx1 * np.cos(self.angle) - image_lry1 * np.sin(self.angle)
-        ) / self.res
-        image_lry2 = (
-            image_lrx1 * np.sin(self.angle) + image_lry1 * np.cos(-self.angle)
-        ) / self.res
+        image_ulx2 = (image_ulx1 * np.cos(self.angle) - image_uly1 * np.sin(self.angle)) / self.res
+        image_uly2 = (image_ulx1 * np.sin(self.angle) + image_uly1 * np.cos(-self.angle)) / self.res
+        image_urx2 = (image_urx1 * np.cos(self.angle) - image_ury1 * np.sin(self.angle)) / self.res
+        image_ury2 = (image_urx1 * np.sin(self.angle) + image_ury1 * np.cos(-self.angle)) / self.res
+        image_llx2 = (image_llx1 * np.cos(self.angle) - image_lly1 * np.sin(self.angle)) / self.res
+        image_lly2 = (image_llx1 * np.sin(self.angle) + image_lly1 * np.cos(-self.angle)) / self.res
+        image_lrx2 = (image_lrx1 * np.cos(self.angle) - image_lry1 * np.sin(self.angle)) / self.res
+        image_lry2 = (image_lrx1 * np.sin(self.angle) + image_lry1 * np.cos(-self.angle)) / self.res
 
         # image bounds in screen coordinates
         x2_min = int(np.floor(min([image_ulx2, image_urx2, image_llx2, image_lrx2])))
@@ -172,12 +127,13 @@ class Screen:
 
                 self.dots.append(Dot(x1, y1, self.array[row, col]))
 
-    def display(self, plt, colorstr="k"):
-        """
-        Display screen.
-        Input:
-            -plt        matplotlib.pyplot
-            -colorstr   str
+    def display_preview(self, plt, colorstr="k"):
+        """Display a preview of the screen, using a matplotlib scatter plot.
+
+        Parameters
+        ----------
+        plt : matplotlib.pyplot
+        colorstr : str
         """
 
         x = np.asarray([d.ulx for d in self.dots])
@@ -188,14 +144,18 @@ class Screen:
 
 
 def rgb_to_cmyk(img):
-    """
-    Simple formula for conversion from RGB to CMYK color model.
+    """Simple formula for conversion from RGB to CMYK color model.
+
     Doesn't take into account true color representation on physical device.
     Third axis of input and output array is the color dimension (RGB, and CMYK respectively)
-    Input:
-        -img        np.array of floats
-    Output:
-        -output     np.array of floats
+
+    Parameters
+    ----------
+    img : np.array of floats
+
+    Returns
+    -------
+    output : np.array of floats
     """
     black = np.minimum.reduce([1 - img[:, :, 0], 1 - img[:, :, 1], 1 - img[:, :, 2]])
     cyan = (1 - img[:, :, 0] - black) / (1 - black)
@@ -207,21 +167,21 @@ def rgb_to_cmyk(img):
 
 
 def halftone(input_file, output_file, display_preview=False, color=None):
-    """
-    Simulate halftoning.
+    """Simulate halftoning.
 
     Parameters
     ----------
-        input_file: str
-        output_file: str
-        display_preview: bool
-        color: str or None
-            option to process only one color, str that can take following values (or None):
-            'cyan', 'magenta', 'yellow', 'black'
+    input_file : str
+    output_file : str
+    display_preview : bool
+    color : str or None
+        option to process only one color, str that can take following values (or None):
+        'cyan', 'magenta', 'yellow', 'black'
     """
 
-    # create some constants
-    screens_res = 10  # in pixels
+    # read config
+    config = configparser.ConfigParser()
+    config.read(Path(__file__).resolve().parent.parent / "config" / "config.ini")
 
     # read, normalize input image, and convert from rgb to cmyk
     img = io.imread(input_file) / 255
@@ -231,22 +191,20 @@ def halftone(input_file, output_file, display_preview=False, color=None):
     svg_elements = []
     if color is None or color == "cyan":
         cscreen = Screen(
-            (0, 0),  # x and y shift
-            15 * np.pi / 180,  # angle
-            screens_res,  # resolution
+            [int(v) for v in config["screens_shifts"]["cyan"].split(",")],  # x and y shift
+            float(config["screens_angles"]["cyan"]) * np.pi / 180,  # angle
+            int(config["screens_res"]["cyan"]),  # resolution
             img[:, :, 0],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="cyan")
-            for d in cscreen.dots
-            if not d.contour.coords == []
+            d.contour.svg(stroke_color="cyan") for d in cscreen.dots if not d.contour.coords == []
         ]
 
     if color is None or color == "magenta":
         mscreen = Screen(
-            (0, 0),  # x and y shift
-            75 * np.pi / 180,  # angle
-            screens_res,  # resolution
+            [int(v) for v in config["screens_shifts"]["magenta"].split(",")],  # x and y shift
+            float(config["screens_angles"]["magenta"]) * np.pi / 180,  # angle
+            int(config["screens_res"]["magenta"]),  # resolution
             img[:, :, 1],  # input array
         )
         svg_elements += [
@@ -257,47 +215,42 @@ def halftone(input_file, output_file, display_preview=False, color=None):
 
     if color is None or color == "yellow":
         yscreen = Screen(
-            (0, 0),  # x and y shift
-            0,  # angle
-            screens_res,  # resolution
+            [int(v) for v in config["screens_shifts"]["yellow"].split(",")],  # x and y shift
+            float(config["screens_angles"]["yellow"]) * np.pi / 180,  # angle
+            int(config["screens_res"]["yellow"]),  # resolution
             img[:, :, 2],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="yellow")
-            for d in yscreen.dots
-            if not d.contour.coords == []
+            d.contour.svg(stroke_color="yellow") for d in yscreen.dots if not d.contour.coords == []
         ]
 
     if color is None or color == "black":
         kscreen = Screen(
-            (0, 0),  # x and y shift
-            45 * np.pi / 180,  # angle
-            screens_res,  # resolution
+            [int(v) for v in config["screens_shifts"]["black"].split(",")],  # x and y shift
+            float(config["screens_angles"]["black"]) * np.pi / 180,  # angle
+            int(config["screens_res"]["black"]),  # resolution
             img[:, :, 3],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="black")
-            for d in kscreen.dots
-            if not d.contour.coords == []
+            d.contour.svg(stroke_color="black") for d in kscreen.dots if not d.contour.coords == []
         ]
 
     # optionally display preview of result using matplotlib
     if display_preview:
-        if color is None or color == "cyan": cscreen.display(plt, colorstr="cyan")
-        if color is None or color == "magenta": mscreen.display(plt, colorstr="magenta")
-        if color is None or color == "yellow": yscreen.display(plt, colorstr="yellow")
-        if color is None or color == "black": kscreen.display(plt, colorstr="black")
+        if color is None or color == "cyan":
+            cscreen.display(plt, colorstr="cyan")
+        if color is None or color == "magenta":
+            mscreen.display(plt, colorstr="magenta")
+        if color is None or color == "yellow":
+            yscreen.display(plt, colorstr="yellow")
+        if color is None or color == "black":
+            kscreen.display(plt, colorstr="black")
         plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
         plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
         plt.show()
 
     # write svg output file
-    write_svg_file(
-        output_file,
-        svg_elements,
-        img.shape[1],
-        img.shape[0],
-    )
+    write_svg_file(output_file, svg_elements, img.shape[1], img.shape[0])
 
 
 if __name__ == "__main__":
@@ -305,14 +258,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     required_arguments = parser.add_argument_group("Required Arguments")
     required_arguments.add_argument("-i", "--input_file", required=True)
-    required_arguments.add_argument(
-        "-o", "--output_file", required=True, help="Output SVG file"
-    )
+    required_arguments.add_argument("-o", "--output_file", required=True, help="Output SVG file")
     parser.add_argument(
-        "-t",
-        "--timestamp",
-        action="store_true",
-        help="Add timestamp to output filename",
+        "-t", "--timestamp", action="store_true", help="Add timestamp to output filename"
     )
     parser.add_argument(
         "-p",
