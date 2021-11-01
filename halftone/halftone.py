@@ -8,33 +8,79 @@ import datetime
 import argparse
 import configparser
 from pathlib import Path
+from xml.dom import minidom
 
 # third party imports
 import numpy as np
 from skimage import io
 from matplotlib import pyplot as plt
 from shapely.geometry import Point
+from shapely.geometry import MultiLineString
+import pandas as pd
 
 # current project imports
 from svg_utils import write_svg_file
+from svg_utils import transform_multiline
 
 
 class Dot:
     """Dot of a halftone screen."""
 
-    def __init__(self, ulx, uly, size):
+    def __init__(self, value, ulx, uly, size):
         """
         Parameters
         ----------
+        value : int
         ulx : float
         uly : float
         size : float
         """
 
+        self.value = value
         self.ulx = ulx
         self.uly = uly
         self.size = size
-        self.contour = Point(ulx, uly).buffer(size * 3).exterior
+
+    def draw_glyph(self, svg_paths_dir, margins, angle):
+        """Define SVG elements to draw glyph based on this dot's value, position and size.
+
+        Parameters
+        ----------
+        svg_paths_dir : str
+            directory containing glyphs paths as SVG
+        margins : [float, float, float, float]
+            top, right, bottom, left
+        angle : float
+            degrees
+
+        Returns
+        -------
+        string
+        """
+
+        # read glyph path svg file as multiline
+        glyph_file = os.path.join(svg_paths_dir, "{:02d}.svg".format(self.value))
+        doc = minidom.parse(glyph_file)
+        lines = [
+            [
+                (float(point.split(",")[0]), float(point.split(",")[1]))
+                for point in path.getAttribute("points").split(" ")
+            ]
+            for path in doc.getElementsByTagName("polyline")
+        ]
+        doc.unlink()
+        multiline = MultiLineString(lines)
+
+        # transform multiline based on cell position and size and angle
+        target_xmin = self.ulx + margins[3]
+        target_xmax = self.ulx + self.size[0] - margins[1]
+        target_ymin = self.uly + margins[0]
+        target_ymax = self.uly + self.size[1] - margins[2]
+        multiline = transform_multiline(
+            multiline, target_xmin, target_xmax, target_ymin, target_ymax, angle
+        )
+
+        return multiline.svg()
 
 
 class Screen:
@@ -114,7 +160,7 @@ class Screen:
                 ymin = int(np.floor(y1 - self.res / 2))
                 ymax = int(np.ceil(y1 + self.res / 2))
 
-                # get mean color of area of image covered by this dot
+                # get mean value of area of image covered by this dot
                 if (  # handle out of image areas
                     xmin < 0
                     or xmax > input_array.shape[1]
@@ -125,7 +171,12 @@ class Screen:
                 else:
                     self.array[row, col] = np.mean(input_array[ymin:ymax, xmin:xmax])
 
-                self.dots.append(Dot(x1, y1, self.array[row, col]))
+                # convert this screen array to integers
+                self.array = np.nan_to_num(self.array).astype(np.int)
+
+                self.dots.append(
+                    Dot(self.array[row, col], xmin, ymin, (self.res, self.res))
+                )
 
     def display_preview(self, plt, colorstr="k"):
         """Display a preview of the screen, using a matplotlib scatter plot.
@@ -187,6 +238,13 @@ def halftone(input_file, output_file, display_preview=False, color=None):
     img = io.imread(input_file) / 255
     img = rgb_to_cmyk(img)
 
+    # load lut and compute glyph id for each pixel
+    lut_file = Path(__file__).resolve().parent.parent / config["glyphs"]["lut_file"]
+    lut = pd.read_csv(lut_file)
+    min = np.min(img)
+    max = np.max(img)
+    img = len(lut) - np.digitize(img, np.arange(min, max, (max - min) / len(lut)))
+
     # create cyan, magenta, yellow and black screens
     svg_elements = []
     if color is None or color == "cyan":
@@ -197,7 +255,13 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 0],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="cyan") for d in cscreen.dots if not d.contour.coords == []
+            d.draw_glyph(
+                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
+                [int(v) for v in config["glyphs"]["margins"].split(",")],
+                float(config["glyphs"]["angle"]),
+            )
+            for d in cscreen.dots
+            if not d.value == 0
         ]
 
     if color is None or color == "magenta":
@@ -208,9 +272,13 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 1],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="magenta")
+            d.draw_glyph(
+                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
+                [int(v) for v in config["glyphs"]["margins"].split(",")],
+                float(config["glyphs"]["angle"]),
+            )
             for d in mscreen.dots
-            if not d.contour.coords == []
+            if not d.value == 0
         ]
 
     if color is None or color == "yellow":
@@ -221,7 +289,13 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 2],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="yellow") for d in yscreen.dots if not d.contour.coords == []
+            d.draw_glyph(
+                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
+                [int(v) for v in config["glyphs"]["margins"].split(",")],
+                float(config["glyphs"]["angle"]),
+            )
+            for d in yscreen.dots
+            if not d.value == 0
         ]
 
     if color is None or color == "black":
@@ -232,7 +306,13 @@ def halftone(input_file, output_file, display_preview=False, color=None):
             img[:, :, 3],  # input array
         )
         svg_elements += [
-            d.contour.svg(stroke_color="black") for d in kscreen.dots if not d.contour.coords == []
+            d.draw_glyph(
+                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
+                [int(v) for v in config["glyphs"]["margins"].split(",")],
+                float(config["glyphs"]["angle"]),
+            )
+            for d in kscreen.dots
+            if not d.value == 0
         ]
 
     # optionally display preview of result using matplotlib
