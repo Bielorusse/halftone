@@ -185,7 +185,12 @@ def crop_svg_paths(input_file, output_dir, width, height, margins):
 
         # resize coords
         multiline = transform_multiline(
-            multiline, 0.0 + margins[3], width - margins[1], 0.0 + margins[0], height - margins[2]
+            multiline,
+            0.0 + margins[3],
+            width - margins[1],
+            0.0 + margins[0],
+            height - margins[2],
+            0,
         )
 
         # write single path to separate svg file
