@@ -16,15 +16,21 @@ import numpy as np
 def translate(value, input_min, input_max, output_min, output_max):
     """Mapping a range of values to another"""
 
-    # figure out how 'wide' each range is
-    input_span = input_max - input_min
-    output_span = output_max - output_min
+    # handle case of single value in left range
+    if input_max == input_min:
+        return (output_min + output_max) / 2
 
-    # convert the left range into a 0-1 range (float)
-    value_scaled = (value - input_min) / input_span
+    else:
 
-    # convert the 0-1 range into a value in the right range.
-    return output_min + (value_scaled * output_span)
+        # figure out how 'wide' each range is
+        input_span = input_max - input_min
+        output_span = output_max - output_min
+
+        # convert the left range into a 0-1 range (float)
+        value_scaled = (value - input_min) / input_span
+
+        # convert the 0-1 range into a value in the right range.
+        return output_min + (value_scaled * output_span)
 
 
 def transform_multiline(input_multiline, target_xmin, target_xmax, target_ymin, target_ymax, angle):
@@ -138,7 +144,7 @@ def path_to_lines(path_str):
     y1 = 0
 
     for element in path:
-        if isinstance(element, svg.path.Move) and not x1 == 0 and not y1 == 0:
+        if isinstance(element, svg.path.Move) and not (x1 == 0 and y1 == 0):
             # element is a move (pen up): close line with previous element end point
             points.append((x1, y1))
             lines.append(points)
@@ -173,6 +179,10 @@ def crop_svg_paths(input_file, output_dir, width, height, margins):
         top, right, bottom, left
     """
 
+    # create output_dir
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
     # read and parse paths of input svg file
     doc = minidom.parse(input_file)
     path_strings = [path.getAttribute("d") for path in doc.getElementsByTagName("path")]
@@ -195,7 +205,7 @@ def crop_svg_paths(input_file, output_dir, width, height, margins):
 
         # write single path to separate svg file
         write_svg_file(
-            os.path.join(output_dir, "{:02d}.svg".format(i)), [multiline.svg()], width, height
+            os.path.join(output_dir, "{:02d}.svg".format(i + 1)), [multiline.svg()], width, height
         )
 
 
