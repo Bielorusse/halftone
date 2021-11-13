@@ -61,6 +61,8 @@ class Dot:
         # read glyph path svg file as multiline
         glyph_file = os.path.join(svg_paths_dir, "{:02d}.svg".format(self.value))
         doc = minidom.parse(glyph_file)
+        width = float(doc.getElementsByTagName("svg")[0].getAttribute("width"))
+        height = float(doc.getElementsByTagName("svg")[0].getAttribute("height"))
         lines = [
             [
                 (float(point.split(",")[0]), float(point.split(",")[1]))
@@ -71,11 +73,20 @@ class Dot:
         doc.unlink()
         multiline = MultiLineString(lines)
 
-        # transform multiline based on cell position and size and angle
+        # compute cell bounds
         target_xmin = self.ulx + margins[3]
         target_xmax = self.ulx + self.size[0] - margins[1]
         target_ymin = self.uly + margins[0]
         target_ymax = self.uly + self.size[1] - margins[2]
+
+        # compute glyph bounds
+        xmin, ymin, xmax, ymax = multiline.bounds
+        target_xmin += xmin * (self.size[0] - margins[1] - margins[3]) / width
+        target_xmax -= (width - xmax) * (self.size[0] - margins[1] - margins[3]) / width
+        target_ymin += ymin * (self.size[1] - margins[0] - margins[2]) / height
+        target_ymax -= (height - ymax) * (self.size[1] - margins[0] - margins[2]) / height
+
+        # transform multiline based on cell position and size and angle
         multiline = transform_multiline(
             multiline, target_xmin, target_xmax, target_ymin, target_ymax, angle
         )
