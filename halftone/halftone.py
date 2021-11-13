@@ -185,9 +185,7 @@ class Screen:
                 # convert this screen array to integers
                 self.array = np.nan_to_num(self.array).astype(np.int)
 
-                self.dots.append(
-                    Dot(self.array[row, col], xmin, ymin, (self.res, self.res))
-                )
+                self.dots.append(Dot(self.array[row, col], xmin, ymin, (self.res, self.res)))
 
     def display_preview(self, plt, colorstr="k"):
         """Display a preview of the screen, using a matplotlib scatter plot.
@@ -254,7 +252,7 @@ def halftone(input_file, output_file, display_preview=False, color=None):
     lut = pd.read_csv(lut_file)
     min = np.min(img)
     max = np.max(img)
-    img = len(lut) - np.digitize(img, np.arange(min, max, (max - min) / len(lut)))
+    img = np.digitize(img, np.arange(min, max, (max - min) / len(lut))) - 1
 
     # create cyan, magenta, yellow and black screens
     svg_elements = []
