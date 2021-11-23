@@ -12,7 +12,8 @@ from xml.dom import minidom
 
 # third party imports
 import numpy as np
-from skimage import io
+import skimage.io
+import skimage.transform
 from matplotlib import pyplot as plt
 from shapely.geometry import Point
 from shapely.geometry import MultiLineString
@@ -226,7 +227,14 @@ def rgb_to_cmyk(img):
     return output
 
 
-def halftone(input_file, output_file, display_preview=False, color=None):
+def halftone(
+    input_file,
+    output_file,
+    display_preview=False,
+    color=None,
+    image_width=None,
+    image_height=None,
+):
     """Simulate halftoning.
 
     Parameters
@@ -237,14 +245,18 @@ def halftone(input_file, output_file, display_preview=False, color=None):
     color : str or None
         option to process only one color, str that can take following values (or None):
         'cyan', 'magenta', 'yellow', 'black'
+    image_width : int or None
+    image_height : int or None
     """
 
     # read config
     config = configparser.ConfigParser()
     config.read(Path(__file__).resolve().parent.parent / "config" / "config.ini")
 
-    # read, normalize input image, and convert from rgb to cmyk
-    img = io.imread(input_file) / 255
+    # read, normalize, resample input image, and convert from rgb to cmyk
+    img = skimage.io.imread(input_file) / 255
+    if image_width is not None and image_height is not None:
+        img = skimage.transform.resize(img, (image_width, image_height))
     img = rgb_to_cmyk(img)
 
     # load lut and compute glyph id for each pixel
@@ -363,6 +375,8 @@ if __name__ == "__main__":
         choices=["cyan", "magenta", "yellow", "black"],
         help="Option to use only one color for output",
     )
+    parser.add_argument("-iw", "--image_width", help="Width to resample image")
+    parser.add_argument("-ih", "--image_height", help="Heigth to resample image")
     args = parser.parse_args()
 
     # optionally add timestamp to output filename
@@ -375,4 +389,11 @@ if __name__ == "__main__":
     else:
         output_file = args.output_file
 
-    halftone(args.input_file, output_file, args.preview, args.color)
+    halftone(
+        args.input_file,
+        output_file,
+        args.preview,
+        args.color,
+        int(args.image_width) if args.image_width is not None else None,
+        int(args.image_height) if args.image_height is not None else None,
+    )
