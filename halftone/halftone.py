@@ -227,6 +227,43 @@ def rgb_to_cmyk(img):
     return output
 
 
+def write_info_file(input_file, output_file, color, image_width, image_height, config):
+    """Write info file along with output file, containing command line and config parameters.
+
+    Parameters
+    ----------
+    input_file : str
+    output_file : str
+    color : str or None
+    image_width : int or None
+    image_height : int or None
+    config : configparser.ConfigParser
+    """
+
+    info_file = "{}_info.txt".format(os.path.splitext(output_file)[0])
+
+    with open(info_file, "w") as outfile:
+
+        outfile.write("Halftone info file\n")
+
+        outfile.write(
+            "Processing date: {}\n".format(datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S"))
+        )
+
+        outfile.write("Command line arguments\n")
+        outfile.write("Input file: {}\n".format(input_file))
+        outfile.write("Output file: {}\n".format(output_file))
+        outfile.write("Color: {}\n".format(color))
+        outfile.write("Image width (px): {}\n".format(image_width))
+        outfile.write("Image height (px): {}\n".format(image_height))
+
+        outfile.write("Config parameters\n")
+        for section in config.sections():
+            outfile.write("{}\n".format(section))
+            for param, value in config.items(section):
+                outfile.write("{}: {}\n".format(param, value))
+
+
 def halftone(
     input_file,
     output_file,
@@ -234,6 +271,7 @@ def halftone(
     color=None,
     image_width=None,
     image_height=None,
+    do_info_file=False,
 ):
     """Simulate halftoning.
 
@@ -247,6 +285,7 @@ def halftone(
         'cyan', 'magenta', 'yellow', 'black'
     image_width : int or None
     image_height : int or None
+    do_info_file : bool
     """
 
     # read config
@@ -353,6 +392,17 @@ def halftone(
     # write svg output file
     write_svg_file(output_file, svg_elements, img.shape[1], img.shape[0])
 
+    # optionally write info file
+    if do_info_file:
+        write_info_file(
+            input_file,
+            output_file,
+            color,
+            image_width,
+            image_height,
+            config,
+        )
+
 
 if __name__ == "__main__":
 
@@ -377,6 +427,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("-iw", "--image_width", help="Width to resample image")
     parser.add_argument("-ih", "--image_height", help="Heigth to resample image")
+    parser.add_argument(
+        "-if", "--info_file", action="store_true", help="Option to write info file with config"
+    )
     args = parser.parse_args()
 
     # optionally add timestamp to output filename
@@ -396,4 +449,5 @@ if __name__ == "__main__":
         args.color,
         int(args.image_width) if args.image_width is not None else None,
         int(args.image_height) if args.image_height is not None else None,
+        args.info_file,
     )
