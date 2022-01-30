@@ -256,7 +256,7 @@ def halftone(
     # read, normalize, resample input image, and convert from rgb to cmyk
     img = skimage.io.imread(input_file) / 255
     if image_width is not None and image_height is not None:
-        img = skimage.transform.resize(img, (image_width, image_height))
+        img = skimage.transform.resize(img, (image_height, image_width))
     img = rgb_to_cmyk(img)
 
     # load lut and compute glyph id for each pixel
