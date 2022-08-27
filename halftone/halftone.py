@@ -42,7 +42,7 @@ class Dot:
         self.uly = uly
         self.size = size
 
-    def draw_glyph(self, svg_paths_dir, margins, angle):
+    def draw_glyph(self, svg_paths_dir, margins, angle, scale_factor=1.0, stroke_color=None):
         """Define SVG elements to draw glyph based on this dot's value, position and size.
 
         Parameters
@@ -53,6 +53,11 @@ class Dot:
             top, right, bottom, left
         angle : float
             degrees
+        scale_factor : float
+            multiplication factor for the SVG stroke-width, default is 1
+        stroke_color : str or None
+            hex string for stroke color, default is to use "#66cc99" if geometry is valid, and
+            "#ff3333" if invalid
 
         Returns
         -------
@@ -92,7 +97,7 @@ class Dot:
             multiline, target_xmin, target_xmax, target_ymin, target_ymax, angle
         )
 
-        return multiline.svg()
+        return multiline.svg(scale_factor, stroke_color)
 
 
 class Screen:
@@ -319,6 +324,7 @@ def halftone(
                 Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
                 [int(v) for v in config["glyphs"]["margins"].split(",")],
                 float(config["glyphs"]["angle"]),
+                stroke_color="#2bfafa",
             )
             for d in cscreen.dots
             if not d.value == 0
@@ -336,6 +342,7 @@ def halftone(
                 Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
                 [int(v) for v in config["glyphs"]["margins"].split(",")],
                 float(config["glyphs"]["angle"]),
+                stroke_color="#ff00ff",
             )
             for d in mscreen.dots
             if not d.value == 0
@@ -353,6 +360,7 @@ def halftone(
                 Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
                 [int(v) for v in config["glyphs"]["margins"].split(",")],
                 float(config["glyphs"]["angle"]),
+                stroke_color="#ffff00",
             )
             for d in yscreen.dots
             if not d.value == 0
@@ -370,6 +378,7 @@ def halftone(
                 Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
                 [int(v) for v in config["glyphs"]["margins"].split(",")],
                 float(config["glyphs"]["angle"]),
+                stroke_color="#000000",
             )
             for d in kscreen.dots
             if not d.value == 0
