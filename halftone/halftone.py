@@ -216,20 +216,20 @@ def rgb_to_cmyk(img):
     return output
 
 
-def write_info_file(input_file, output_file, color, image_width, image_height, config):
+def write_info_file(input_file, output_stem, colors, image_width, image_height, config):
     """Write info file along with output file, containing command line and config parameters.
 
     Parameters
     ----------
     input_file : str
-    output_file : str
-    color : str or None
+    output_stem : str
+    colors : [str, ...]
     image_width : int or None
     image_height : int or None
     config : configparser.ConfigParser
     """
 
-    info_file = "{}_info.txt".format(os.path.splitext(output_file)[0])
+    info_file = "{}_info.txt".format(output_stem)
 
     with open(info_file, "w") as outfile:
 
@@ -241,8 +241,8 @@ def write_info_file(input_file, output_file, color, image_width, image_height, c
 
         outfile.write("Command line arguments\n")
         outfile.write("Input file: {}\n".format(input_file))
-        outfile.write("Output file: {}\n".format(output_file))
-        outfile.write("Color: {}\n".format(color))
+        outfile.write("Output files stem: {}\n".format(output_stem))
+        outfile.write("Colors: {}\n".format(", ".join(colors)))
         outfile.write("Image width (px): {}\n".format(image_width))
         outfile.write("Image height (px): {}\n".format(image_height))
 
@@ -254,17 +254,23 @@ def write_info_file(input_file, output_file, color, image_width, image_height, c
 
 
 def halftone(
-    input_file, output_file, color=None, image_width=None, image_height=None, do_info_file=False
+    input_file,
+    output_stem,
+    output_colors=["c", "m", "y", "k", "a"],
+    image_width=None,
+    image_height=None,
+    do_info_file=False,
 ):
     """Simulate halftoning.
 
     Parameters
     ----------
     input_file : str
-    output_file : str
-    color : str or None
-        option to process only one color, str that can take following values (or None):
-        'cyan', 'magenta', 'yellow', 'black'
+    output_stem : str
+        files path and stem, a suffix will automatically be added for example '_c.svg' for cyan
+    output_colors : [str, ...]
+        output files to produce, named after the colors they contain
+        choices: [c]yan [m]agenta [y]ellow [b]lack [a]ll
     image_width : int or None
     image_height : int or None
     do_info_file : bool
@@ -288,85 +294,56 @@ def halftone(
     img = np.digitize(img, np.arange(min, max, (max - min) / len(lut))) - 1
 
     # create cyan, magenta, yellow and black screens
-    svg_elements = []
-    if color is None or color == "cyan":
-        cscreen = Screen(
-            [int(v) for v in config["screens_shifts"]["cyan"].split(",")],  # x and y shift
-            float(config["screens_angles"]["cyan"]) * np.pi / 180,  # angle
-            int(config["screens_res"]["cyan"]),  # resolution
-            img[:, :, 0],  # input array
+    all_colors_svg_elements = []
+    colors_dicts = [
+        {"id": "c", "array_coord": 0, "name": "cyan", "hex": "#2bfafa"},
+        {"id": "m", "array_coord": 1, "name": "magenta", "hex": "#ff00ff"},
+        {"id": "y", "array_coord": 2, "name": "yellow", "hex": "#ffff00"},
+        {"id": "k", "array_coord": 3, "name": "black", "hex": "#000000"},
+    ]
+    for color_dict in colors_dicts:
+
+        # initiate screen by computing its dots coordinates
+        screen = Screen(
+            [
+                int(v) for v in config["screens_shifts"][color_dict["name"]].split(",")
+            ],  # x and y shift
+            float(config["screens_angles"][color_dict["name"]]) * np.pi / 180,  # angle
+            int(config["screens_res"][color_dict["name"]]),  # resolution
+            img[:, :, color_dict["array_coord"]],  # input array
         )
-        svg_elements += [
+
+        # draw svg elements on screen using glyphs
+        svg_elements = [
             d.draw_glyph(
                 Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
                 [int(v) for v in config["glyphs"]["margins"].split(",")],
                 float(config["glyphs"]["angle"]),
-                stroke_color="#2bfafa",
+                stroke_color=color_dict["hex"],
             )
-            for d in cscreen.dots
+            for d in screen.dots
             if not d.value == 0
         ]
+        all_colors_svg_elements += svg_elements
 
-    if color is None or color == "magenta":
-        mscreen = Screen(
-            [int(v) for v in config["screens_shifts"]["magenta"].split(",")],  # x and y shift
-            float(config["screens_angles"]["magenta"]) * np.pi / 180,  # angle
-            int(config["screens_res"]["magenta"]),  # resolution
-            img[:, :, 1],  # input array
+        # optionally store results to output file
+        if color_dict["id"] in output_colors:
+            write_svg_file(
+                "{}_{}.svg".format(output_stem, color_dict["id"]),
+                svg_elements,
+                img.shape[1],
+                img.shape[0],
+            )
+
+    # optionally write output svg file containing all colors
+    if "a" in output_colors:
+        write_svg_file(
+            "{}_a.svg".format(output_stem), all_colors_svg_elements, img.shape[1], img.shape[0]
         )
-        svg_elements += [
-            d.draw_glyph(
-                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
-                [int(v) for v in config["glyphs"]["margins"].split(",")],
-                float(config["glyphs"]["angle"]),
-                stroke_color="#ff00ff",
-            )
-            for d in mscreen.dots
-            if not d.value == 0
-        ]
-
-    if color is None or color == "yellow":
-        yscreen = Screen(
-            [int(v) for v in config["screens_shifts"]["yellow"].split(",")],  # x and y shift
-            float(config["screens_angles"]["yellow"]) * np.pi / 180,  # angle
-            int(config["screens_res"]["yellow"]),  # resolution
-            img[:, :, 2],  # input array
-        )
-        svg_elements += [
-            d.draw_glyph(
-                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
-                [int(v) for v in config["glyphs"]["margins"].split(",")],
-                float(config["glyphs"]["angle"]),
-                stroke_color="#ffff00",
-            )
-            for d in yscreen.dots
-            if not d.value == 0
-        ]
-
-    if color is None or color == "black":
-        kscreen = Screen(
-            [int(v) for v in config["screens_shifts"]["black"].split(",")],  # x and y shift
-            float(config["screens_angles"]["black"]) * np.pi / 180,  # angle
-            int(config["screens_res"]["black"]),  # resolution
-            img[:, :, 3],  # input array
-        )
-        svg_elements += [
-            d.draw_glyph(
-                Path(__file__).resolve().parent.parent / config["glyphs"]["svg_paths_dir"],
-                [int(v) for v in config["glyphs"]["margins"].split(",")],
-                float(config["glyphs"]["angle"]),
-                stroke_color="#000000",
-            )
-            for d in kscreen.dots
-            if not d.value == 0
-        ]
-
-    # write svg output file
-    write_svg_file(output_file, svg_elements, img.shape[1], img.shape[0])
 
     # optionally write info file
     if do_info_file:
-        write_info_file(input_file, output_file, color, image_width, image_height, config)
+        write_info_file(input_file, output_stem, output_colors, image_width, image_height, config)
 
 
 if __name__ == "__main__":
@@ -374,15 +351,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     required_arguments = parser.add_argument_group("Required Arguments")
     required_arguments.add_argument("-i", "--input_file", required=True)
-    required_arguments.add_argument("-o", "--output_file", required=True, help="Output SVG file")
+    required_arguments.add_argument(
+        "-o",
+        "--output_stem",
+        required=True,
+        help="Output SVG file path and stem, a suffix will be added for example '_c.svg' for cyan",
+    )
     parser.add_argument(
         "-t", "--timestamp", action="store_true", help="Add timestamp to output filename"
     )
     parser.add_argument(
         "-c",
-        "--color",
-        choices=["cyan", "magenta", "yellow", "black"],
-        help="Option to use only one color for output",
+        "--colors",
+        nargs="+",
+        choices=["c", "m", "y", "k", "a"],
+        default=["c", "m", "y", "k", "a"],
+        help="Output files colors: [c]yan [m]agenta [y]ellow [b]lack [a]ll (default c m y k a)",
     )
     parser.add_argument("-iw", "--image_width", help="Width to resample image")
     parser.add_argument("-ih", "--image_height", help="Heigth to resample image")
@@ -391,20 +375,18 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # optionally add timestamp to output filename
+    # optionally add timestamp to output filename stem
     if args.timestamp:
-        output_file = "{}_{}{}".format(
-            os.path.splitext(args.output_file)[0],
-            datetime.datetime.now().strftime("%Y%m%d_%H%M"),
-            os.path.splitext(args.output_file)[1],
+        output_stem = "{}_{}".format(
+            args.output_stem, datetime.datetime.now().strftime("%Y%m%d_%H%M")
         )
     else:
-        output_file = args.output_file
+        output_stem = args.output_stem
 
     halftone(
         args.input_file,
-        output_file,
-        args.color,
+        output_stem,
+        args.colors,
         int(args.image_width) if args.image_width is not None else None,
         int(args.image_height) if args.image_height is not None else None,
         args.info_file,
