@@ -14,7 +14,6 @@ from xml.dom import minidom
 import numpy as np
 import skimage.io
 import skimage.transform
-from shapely.geometry import Point
 from shapely.geometry import MultiLineString
 import pandas as pd
 
