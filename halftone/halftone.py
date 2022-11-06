@@ -14,7 +14,6 @@ from xml.dom import minidom
 import numpy as np
 import skimage.io
 import skimage.transform
-from matplotlib import pyplot as plt
 from shapely.geometry import Point
 from shapely.geometry import MultiLineString
 import pandas as pd
@@ -193,21 +192,6 @@ class Screen:
 
                 self.dots.append(Dot(self.array[row, col], xmin, ymin, (self.res, self.res)))
 
-    def display_preview(self, plt, colorstr="k"):
-        """Display a preview of the screen, using a matplotlib scatter plot.
-
-        Parameters
-        ----------
-        plt : matplotlib.pyplot
-        colorstr : str
-        """
-
-        x = np.asarray([d.ulx for d in self.dots])
-        y = np.asarray([d.uly for d in self.dots])
-        s = np.asarray([d.size for d in self.dots])
-
-        plt.scatter(x, -y, s=s * 100, c=colorstr, marker=".", alpha=0.5, linewidths=0)
-
 
 def rgb_to_cmyk(img):
     """Simple formula for conversion from RGB to CMYK color model.
@@ -270,13 +254,7 @@ def write_info_file(input_file, output_file, color, image_width, image_height, c
 
 
 def halftone(
-    input_file,
-    output_file,
-    display_preview=False,
-    color=None,
-    image_width=None,
-    image_height=None,
-    do_info_file=False,
+    input_file, output_file, color=None, image_width=None, image_height=None, do_info_file=False
 ):
     """Simulate halftoning.
 
@@ -284,7 +262,6 @@ def halftone(
     ----------
     input_file : str
     output_file : str
-    display_preview : bool
     color : str or None
         option to process only one color, str that can take following values (or None):
         'cyan', 'magenta', 'yellow', 'black'
@@ -384,33 +361,12 @@ def halftone(
             if not d.value == 0
         ]
 
-    # optionally display preview of result using matplotlib
-    if display_preview:
-        if color is None or color == "cyan":
-            cscreen.display(plt, colorstr="cyan")
-        if color is None or color == "magenta":
-            mscreen.display(plt, colorstr="magenta")
-        if color is None or color == "yellow":
-            yscreen.display(plt, colorstr="yellow")
-        if color is None or color == "black":
-            kscreen.display(plt, colorstr="black")
-        plt.xlim((-img.shape[1] * 0.1, img.shape[1] * 1.1))
-        plt.ylim((-img.shape[0] * 1.1, img.shape[0] * 0.1))
-        plt.show()
-
     # write svg output file
     write_svg_file(output_file, svg_elements, img.shape[1], img.shape[0])
 
     # optionally write info file
     if do_info_file:
-        write_info_file(
-            input_file,
-            output_file,
-            color,
-            image_width,
-            image_height,
-            config,
-        )
+        write_info_file(input_file, output_file, color, image_width, image_height, config)
 
 
 if __name__ == "__main__":
@@ -421,12 +377,6 @@ if __name__ == "__main__":
     required_arguments.add_argument("-o", "--output_file", required=True, help="Output SVG file")
     parser.add_argument(
         "-t", "--timestamp", action="store_true", help="Add timestamp to output filename"
-    )
-    parser.add_argument(
-        "-p",
-        "--preview",
-        action="store_true",
-        help="Display preview of output file using matplotlib",
     )
     parser.add_argument(
         "-c",
@@ -454,7 +404,6 @@ if __name__ == "__main__":
     halftone(
         args.input_file,
         output_file,
-        args.preview,
         args.color,
         int(args.image_width) if args.image_width is not None else None,
         int(args.image_height) if args.image_height is not None else None,
