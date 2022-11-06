@@ -26,7 +26,10 @@ class Dot:
     """Dot of a halftone screen."""
 
     def __init__(self, value, ulx, uly, size):
-        """
+        """Constructor of the Dot class.
+
+        Parameters define value (or intensity) of the dot, as well as its position and cell size.
+
         Parameters
         ----------
         value : int
@@ -48,7 +51,7 @@ class Dot:
         svg_paths_dir : str
             directory containing glyphs paths as SVG
         margins : [float, float, float, float]
-            top, right, bottom, left
+            inner margins of this glyph's cell (in pixels): top, right, bottom, left
         angle : float
             degrees
         scale_factor : float
@@ -111,6 +114,7 @@ class Screen:
         shift : (int, int)
         angle : float
         resolution : int
+            distance between dots or size of cells (in pixels)
         input_array : np.array
         """
 
@@ -242,8 +246,8 @@ def write_info_file(input_file, output_stem, colors, image_width, image_height, 
         outfile.write("Input file: {}\n".format(input_file))
         outfile.write("Output files stem: {}\n".format(output_stem))
         outfile.write("Colors: {}\n".format(", ".join(colors)))
-        outfile.write("Image width (px): {}\n".format(image_width))
-        outfile.write("Image height (px): {}\n".format(image_height))
+        outfile.write("Output image width (px): {}\n".format(image_width))
+        outfile.write("Output image height (px): {}\n".format(image_height))
 
         outfile.write("Config parameters\n")
         for section in config.sections():
@@ -265,13 +269,16 @@ def halftone(
     Parameters
     ----------
     input_file : str
+        image file to reproduce with halftoning
     output_stem : str
         files path and stem, a suffix will automatically be added for example '_c.svg' for cyan
     output_colors : [str, ...]
         output files to produce, named after the colors they contain
         choices: [c]yan [m]agenta [y]ellow [b]lack [a]ll
     image_width : int or None
+        output image width
     image_height : int or None
+        output image height
     do_info_file : bool
     """
 
@@ -280,17 +287,19 @@ def halftone(
     config.read(Path(__file__).resolve().parent.parent / "config" / "config.ini")
 
     # read, normalize, resample input image, and convert from rgb to cmyk
-    img = skimage.io.imread(input_file) / 255
+    img_array = skimage.io.imread(input_file) / 255
     if image_width is not None and image_height is not None:
-        img = skimage.transform.resize(img, (image_height, image_width))
-    img = rgb_to_cmyk(img)
+        img_array = skimage.transform.resize(img_array, (image_height, image_width))
+    img_array = rgb_to_cmyk(img_array)
 
     # load lut and compute glyph id for each pixel
     lut_file = Path(__file__).resolve().parent.parent / config["glyphs"]["lut_file"]
     lut = pd.read_csv(lut_file)
-    min = np.min(img)
-    max = np.max(img)
-    img = np.digitize(img, np.arange(min, max, (max - min) / len(lut))) - 1
+    img_min = np.min(img_array)
+    img_max = np.max(img_array)
+    img_array = (
+        np.digitize(img_array, np.arange(img_min, img_max, (img_max - img_min) / len(lut))) - 1
+    )
 
     # create cyan, magenta, yellow and black screens
     all_colors_svg_elements = []
@@ -302,14 +311,14 @@ def halftone(
     ]
     for color_dict in colors_dicts:
 
-        # initiate screen by computing its dots coordinates
+        # initiate screen by computing its dots coordinates and values (or intensity)
         screen = Screen(
             [
                 int(v) for v in config["screens_shifts"][color_dict["name"]].split(",")
             ],  # x and y shift
             float(config["screens_angles"][color_dict["name"]]) * np.pi / 180,  # angle
             int(config["screens_res"][color_dict["name"]]),  # resolution
-            img[:, :, color_dict["array_coord"]],  # input array
+            img_array[:, :, color_dict["array_coord"]],  # input array
         )
 
         # draw svg elements on screen using glyphs
@@ -330,14 +339,17 @@ def halftone(
             write_svg_file(
                 "{}_{}.svg".format(output_stem, color_dict["id"]),
                 svg_elements,
-                img.shape[1],
-                img.shape[0],
+                img_array.shape[1],
+                img_array.shape[0],
             )
 
     # optionally write output svg file containing all colors
     if "a" in output_colors:
         write_svg_file(
-            "{}_a.svg".format(output_stem), all_colors_svg_elements, img.shape[1], img.shape[0]
+            "{}_a.svg".format(output_stem),
+            all_colors_svg_elements,
+            img_array.shape[1],
+            img_array.shape[0],
         )
 
     # optionally write info file
@@ -349,7 +361,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     required_arguments = parser.add_argument_group("Required Arguments")
-    required_arguments.add_argument("-i", "--input_file", required=True)
+    required_arguments.add_argument(
+        "-i", "--input_file", required=True, help="Image file to reproduce with halftoning"
+    )
     required_arguments.add_argument(
         "-o",
         "--output_stem",
@@ -367,8 +381,8 @@ if __name__ == "__main__":
         default=["c", "m", "y", "k", "a"],
         help="Output files colors: [c]yan [m]agenta [y]ellow [b]lack [a]ll (default c m y k a)",
     )
-    parser.add_argument("-iw", "--image_width", help="Width to resample image")
-    parser.add_argument("-ih", "--image_height", help="Heigth to resample image")
+    parser.add_argument("-iw", "--image_width", help="Output image width (in pixels)")
+    parser.add_argument("-ih", "--image_height", help="Output image width (in pixels)")
     parser.add_argument(
         "-if", "--info_file", action="store_true", help="Option to write info file with config"
     )
