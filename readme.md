@@ -18,7 +18,7 @@ I thought that this concept would be interesting for a mechanical plotter. Indee
 
 **Plotting halftones**
 
-I implemented [some code]([https://github.com/tvoirand/halftone](https://github.com/tvoirand/halftone) to draw halftone versions of digital images using a mechanical plotter. The method is described in the 3 following steps:
+I implemented [some code](https://github.com/tvoirand/halftone) to draw halftone versions of digital images using a mechanical plotter. The method is described in the 3 following steps:
 
 *Converting from RGB to CMYK*
 
@@ -26,7 +26,7 @@ First, a simple formula is used to convert the image from RGB (red, green, blue)
 
 *Defining screens*
 
-The position of all dots composing the screen are computed. These depend on the image dimensions as well as the desired screen resolution (the distance bewteen the centers of each dot) and orientation. Indeed, halftoning screens are commonly rotated in relation to each other to avoid unwanted visual effects such as [moiré patterns](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).
+The position of all dots composing the screen are computed. These depend on the image dimensions as well as the desired screen resolution (the distance between the centers of each dot) and orientation. Indeed, halftoning screens are commonly rotated in relation to each other to avoid unwanted visual effects such as [moiré patterns](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).
 
 *Drawing dots*
 
@@ -36,7 +36,7 @@ Finally, the shapes of the dots are drawn, or saved to a vector graphics file to
 
 **Artistic screening**
 
-[Artistic screening](https://www.researchgate.net/publication/37443249_Artistic_Screening) is a reprographic technique proposed by Ostromoukhov and Hersch (1995), where halftones are generated using screen elements which can take any desired shape instead of using the traditional round, elliptical, or square dots. With this approach, both the image to be reproduced and the screen elements can be designed independently, or have a specifical relation. The image can convey its message on different levels, or even different messages, when observed at different scales.
+[Artistic screening](https://www.researchgate.net/publication/37443249_Artistic_Screening) is a reprographic technique proposed by Ostromoukhov and Hersch (1995), where halftones are generated using screen elements which can take any desired shape instead of using the traditional round, elliptical, or square dots. With this approach, both the image to be reproduced and the screen elements can be designed independently, or have a specific relation. The image can convey its message on different levels, or even different messages, when observed at different scales.
 
 In the method proposed by Ostromoukhov and Hersch, variations of the dots' shapes are associated with color intensity levels by interpolating between fix predefined dot contours. I didn't go into this level of complexity, but decided to simply discretize color intensity levels and associate each level to a single shape.
 
