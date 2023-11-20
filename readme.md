@@ -1,8 +1,12 @@
 # Halftone
 
+### Introduction
+
+This is a python project where I play around with halftoning to render digital images with my [Axidraw](https://www.axidraw.com/) machine. See more results at: https://thibautvoirand.com/halftone/
+
  <img src="doc/20220401_halftone_harvey_keitel_smoke.jpg" width="50%"/>
 
-Playing around with halftoning. See more results at: https://thibautvoirand.com/halftone/
+### Description
 
 **Halftone theory**
 
@@ -20,15 +24,15 @@ I thought that this concept would be interesting for a mechanical plotter. Indee
 
 I implemented [some code](https://github.com/tvoirand/halftone) to draw halftone versions of digital images using a mechanical plotter. The method is described in the 3 following steps:
 
-*Converting from RGB to CMYK*
+1. Converting from RGB to CMYK
 
 First, a simple formula is used to convert the image from RGB (red, green, blue) to CMYK (cyan, magenta, yellow, black) color space. Then, the screens corresponding to each color are processed successively.
 
-*Defining screens*
+2. Defining screens
 
 The position of all dots composing the screen are computed. These depend on the image dimensions as well as the desired screen resolution (the distance between the centers of each dot) and orientation. Indeed, halftoning screens are commonly rotated in relation to each other to avoid unwanted visual effects such as [moiré patterns](https://en.wikipedia.org/wiki/Moir%C3%A9_pattern).
 
-*Drawing dots*
+3. Drawing dots
 
 In halftoning, the screen resolution is coarser than the input image resolution. Thus, each dot of the screen covers an area including several pixels of the image. The color intensity associated with each dot is computed by averaging the values of the pixels it covers.
 
